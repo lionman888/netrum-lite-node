@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 /* ---------- Configuration ---------- */
 const API_URL = 'https://api.netrumlabs.com/api/node/mining/live-log/';
-const POLL_INTERVAL = 30_000; // 30 seconds
+const POLL_INTERVAL = 5000; // 5 seconds
 const MAX_RETRIES = 3;
 
 /* ---------- Wallet Setup ---------- */
@@ -31,7 +31,7 @@ const fmtTime = (s) => {
   return `${h}h ${m}m ${sec}s`;
 };
 
-/* ---------- Polling Logic ---------- */
+/* ---------- Enhanced Polling Logic ---------- */
 async function pollStatus(address, attempt = 1) {
   try {
     const response = await fetch(API_URL, {
@@ -41,13 +41,13 @@ async function pollStatus(address, attempt = 1) {
     });
 
     if (!response.ok) {
-      throw new Error(`API returned ${response.status}`);
+      throw new Error(`API returned ${response.status}: ${await response.text()}`);
     }
 
     const data = await response.json();
     
     if (!data.success) {
-      throw new Error(data.error || 'API request failed');
+      throw new Error(data.error || 'API returned unsuccessful response');
     }
 
     const info = data.liveInfo;
@@ -71,7 +71,7 @@ async function pollStatus(address, attempt = 1) {
     setTimeout(() => pollStatus(address), POLL_INTERVAL);
 
   } catch (err) {
-    console.error(`Poll attempt ${attempt} failed:`, err.message);
+    console.error(`❌ Attempt ${attempt} failed:`, err.message);
     
     if (attempt >= MAX_RETRIES) {
       console.log('❌ Maximum retries reached');
@@ -91,7 +91,7 @@ async function pollStatus(address, attempt = 1) {
     
     await pollStatus(address);
   } catch (err) {
-    console.error('❌', err.message);
+    console.error('❌ Startup Error:', err.message);
     process.exit(1);
   }
 })();
