@@ -1,92 +1,98 @@
 #!/usr/bin/env node
-
-import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
+import os from 'os';
 import diskusage from 'diskusage';
 
-const API_URL = 'https://api.netrumlabs.com/api/node/metrics/sync/';
+// Configuration
+const API_BASE_URL = 'https://api.netrumlabs.com';
+const SYNC_ENDPOINT = '/api/node/metrics/sync';
 const SYNC_INTERVAL = 5000;
-const DEFAULT_SPEED_MBPS = 5;
-const TOKEN_FILE_PATH = path.resolve(__dirname, '../mining/miningtoken.txt');
+const TOKEN_PATH = path.resolve(__dirname, '../mining/miningtoken.txt');
 
-function log(msg) {
-  process.stderr.write(`[${new Date().toISOString()}] ${msg}\n`);
-}
+// Configure axios instance
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
+});
 
-function getSystemInfo() {
+// Helper functions
+const log = (msg) => console.error(`[${new Date().toISOString()}] ${msg}`);
+
+const getSystemMetrics = () => {
   try {
-    const cores = os.cpus().length;
-    const ram = os.totalmem() / (1024 ** 2); // in MB
-    const disk = diskusage.checkSync('/').free / (1024 ** 3); // in GB
-
     return {
-      cpu: cores,
-      ram: Math.round(ram),
-      disk: Math.round(disk),
-      speed: DEFAULT_SPEED_MBPS,
-      lastSeen: Math.floor(Date.now() / 1000),
+      cpu: os.cpus().length,
+      ram: Math.round(os.totalmem() / (1024 ** 2)), // MB
+      disk: Math.round(diskusage.checkSync('/').free / (1024 ** 3)), // GB
+      speed: 5, // Default Mbps
+      lastSeen: Math.floor(Date.now() / 1000)
     };
   } catch (err) {
-    log('❌ Error reading system info');
+    log(`Metrics error: ${err.message}`);
     return null;
   }
-}
+};
 
-function saveMiningToken(token: string) {
+const saveToken = (token) => {
   try {
-    // Ensure mining directory exists
-    const miningDir = path.dirname(TOKEN_FILE_PATH);
-    if (!fs.existsSync(miningDir)) {
-      fs.mkdirSync(miningDir, { recursive: true });
-    }
-    
-    // Save token to file
-    fs.writeFileSync(TOKEN_FILE_PATH, token, 'utf8');
-    log(`🔑 Mining token saved to ${TOKEN_FILE_PATH}`);
+    fs.mkdirSync(path.dirname(TOKEN_PATH), { recursive: true });
+    fs.writeFileSync(TOKEN_PATH, token);
+    log('Mining token saved');
   } catch (err) {
-    log(`❌ Failed to save mining token: ${err.message}`);
+    log(`Token save failed: ${err.message}`);
   }
-}
+};
 
-async function syncWithServer() {
-  log('🔄 Syncing with server...');
+const syncNode = async () => {
   try {
-    const idFilePath = path.resolve('/root/netrum-lite-node/src/identity/node-id/id.txt');
+    // 1. Get node ID
+    const nodeId = fs.readFileSync(
+      '/root/netrum-lite-node/src/identity/node-id/id.txt', 
+      'utf8'
+    ).trim();
 
-    if (!fs.existsSync(idFilePath)) {
-      log(`❌ id.txt not found at ${idFilePath}`);
-      return;
-    }
+    // 2. Get system metrics
+    const metrics = getSystemMetrics();
+    if (!metrics) throw new Error('Failed to get metrics');
 
-    const nodeId = fs.readFileSync(idFilePath, 'utf8').trim();
-    const metrics = getSystemInfo();
+    // 3. Determine node status
+    const isActive = (
+      metrics.cpu >= NODE_REQUIREMENTS.CORES &&
+      metrics.ram >= NODE_REQUIREMENTS.RAM * 1024 &&
+      metrics.disk >= NODE_REQUIREMENTS.STORAGE
+    );
 
-    if (!metrics) {
-      log('❌ Failed to get system info');
-      return;
-    }
-
-    const response = await axios.post(API_URL, {
+    // 4. Send to server
+    const response = await api.post(SYNC_ENDPOINT, {
       nodeId,
       nodeMetrics: metrics,
-      nodeStatus: (metrics.cpu >= 2 && metrics.ram >= 4096 && metrics.disk >= 50) ? 'Active' : 'InActive'
+      nodeStatus: isActive ? 'Active' : 'InActive'
     });
 
-    if (response.data.log) {
-      log(response.data.log);
+    // 5. Handle response
+    if (response.data?.success) {
+      log(response.data.log || 'Sync successful');
+      if (response.data.miningToken) {
+        saveToken(response.data.miningToken);
+      }
     }
 
-    // Save the mining token if received
-    if (response.data.miningToken) {
-      saveMiningToken(response.data.miningToken);
-    }
   } catch (err) {
-    log('❌ Sync error: ' + (err.message || 'Unknown error'));
+    if (err.response) {
+      log(`Server error: ${err.response.status} - ${JSON.stringify(err.response.data)}`);
+    } else {
+      log(`Sync failed: ${err.message}`);
+    }
   }
-}
+};
 
-log('🚀 Netrum Node Sync Service Started...');
-syncWithServer();
-setInterval(syncWithServer, SYNC_INTERVAL);
+// Start service
+log('Starting Netrum Node Sync');
+syncNode();
+setInterval(syncNode, SYNC_INTERVAL);
