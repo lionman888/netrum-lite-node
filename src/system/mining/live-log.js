@@ -3,36 +3,36 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-/* ---------- Configuration ---------- */
-const API_URL = 'https://api.netrumlabs.com/api/node/mining/live-log/';
+const API_URL = 'https://api.netrumlabs.com/api/node/mining/setup/';
 const POLL_INTERVAL = 5000; // 5 seconds
-const MAX_RETRIES = 3;
-
-/* ---------- Wallet Setup ---------- */
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const keyFile = path.resolve(__dirname, '../../wallet/key.txt');
 
 async function loadAddress() {
-  try {
-    const { address } = JSON.parse(await fs.readFile(keyFile, 'utf-8'));
-    if (!address) throw new Error('Wallet file missing address');
-    return address.trim();
-  } catch (err) {
-    throw new Error(`Failed to load wallet: ${err.message}`);
-  }
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const keyFile = path.resolve(__dirname, '../../wallet/key.txt');
+  const { address } = JSON.parse(await fs.readFile(keyFile, 'utf-8'));
+  return address;
 }
 
-/* ---------- Formatting Helpers ---------- */
-const fmtTokens = (wei) => (Number(wei) / 1e18).toFixed(6);
-const fmtTime = (s) => {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60);
-  return `${h}h ${m}m ${sec}s`;
-};
+function formatStatus(data) {
+  const formatTime = (seconds) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return `${h}h ${m}m ${s}s`;
+  };
 
-/* ---------- Enhanced Polling Logic ---------- */
-async function pollStatus(address, attempt = 1) {
+  const formatTokens = (wei) => (Number(wei) / 1e18).toFixed(6);
+
+  return [
+    `⏱️ ${formatTime(data.timeRemaining)}`,
+    `${data.percentComplete.toFixed(2)}%`,
+    `Mined: ${formatTokens(data.minedTokens)} NPT`,
+    `Speed: ${formatTokens(data.speedPerSec)}/s`,
+    `Status: ${data.isActive ? '✅ ACTIVE' : '❌ INACTIVE'}`
+  ].join(' | ');
+}
+
+async function pollMiningStatus(address) {
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -40,58 +40,35 @@ async function pollStatus(address, attempt = 1) {
       body: JSON.stringify({ nodeAddress: address })
     });
 
-    if (!response.ok) {
-      throw new Error(`API returned ${response.status}: ${await response.text()}`);
-    }
-
     const data = await response.json();
     
     if (!data.success) {
-      throw new Error(data.error || 'API returned unsuccessful response');
+      throw new Error(data.message || 'Failed to get mining status');
     }
 
-    const info = data.liveInfo;
-    const statusLine = [
-      `⏱️ ${fmtTime(info.timeRemaining)}`,
-      `${info.percentComplete.toFixed(2)}%`,
-      `Mined: ${fmtTokens(info.minedTokens)} NPT`,
-      `Speed: ${fmtTokens(info.speedPerSec)}/s`,
-      `Status: ${info.isActive ? '✅ ACTIVE' : '❌ INACTIVE'}`
-    ].join(' | ');
-
     process.stdout.write('\x1Bc'); // Clear console
-    console.log(statusLine);
+    console.log(formatStatus(data));
 
-    if (!info.isActive && info.timeRemaining === 0) {
+    if (!data.isActive && data.timeRemaining === 0) {
       console.log('⏹️ Mining session completed');
       process.exit(0);
     }
 
-    // Schedule next poll
-    setTimeout(() => pollStatus(address), POLL_INTERVAL);
-
   } catch (err) {
-    console.error(`❌ Attempt ${attempt} failed:`, err.message);
-    
-    if (attempt >= MAX_RETRIES) {
-      console.log('❌ Maximum retries reached');
-      process.exit(1);
-    }
-    
-    setTimeout(() => pollStatus(address, attempt + 1), POLL_INTERVAL);
+    console.error('❌ Error fetching status:', err.message);
   }
+
+  setTimeout(() => pollMiningStatus(address), POLL_INTERVAL);
 }
 
-/* ---------- Main Execution ---------- */
 (async () => {
   try {
     const address = await loadAddress();
-    console.log(`📡 Live monitoring for ${address}`);
-    console.log('--------------------------------');
-    
-    await pollStatus(address);
+    console.log(`📡 Monitoring mining status for ${address}`);
+    console.log('----------------------------------------');
+    await pollMiningStatus(address);
   } catch (err) {
-    console.error('❌ Startup Error:', err.message);
+    console.error('❌ Startup error:', err.message);
     process.exit(1);
   }
 })();
