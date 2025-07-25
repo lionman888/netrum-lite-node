@@ -4,63 +4,77 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const API_URL = 'https://api.netrumlabs.com/api/node/mining/setup/';
+/* ---------- config ---------- */
+const API_URL = 'https://api.netrumlabs.com/api/node/mining/start-mining/';
 const RPC_URL = 'https://mainnet.base.org';
-const CHAIN_ID = 8453;
+const CHAIN_ID = 8453;               // Base Mainnet
+const DELAY_MS = 60000;               // ⏱️ Delay before API call in milliseconds
 
-async function loadWallet() {
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const keyFile = path.resolve(__dirname, '../../wallet/key.txt');
-  const { address, privateKey } = JSON.parse(await fs.readFile(keyFile, 'utf-8'));
-  return { address, privateKey };
+/* ---------- logging ---------- */
+process.stdout._handle.setBlocking(true);
+process.stderr._handle.setBlocking(true);
+const log = (m) => process.stderr.write(`[${new Date().toISOString()}] ${m}\n`);
+
+/* ---------- wallet & node ID ---------- */
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const keyFile = path.resolve(__dirname, '../../wallet/key.txt');
+const nodeIdFile = path.resolve(__dirname, '../../identity/node-id/id.txt');
+
+async function loadWalletAndNodeId() {
+  // Load wallet
+  const { privateKey, address } = JSON.parse(await fs.readFile(keyFile, 'utf-8'));
+  if (!address || !privateKey) throw new Error('wallet/key.txt missing data');
+  
+  // Load node ID
+  const nodeId = (await fs.readFile(nodeIdFile, 'utf-8')).trim();
+  if (!nodeId) throw new Error('identity/node-id/id.txt is empty');
+  
+  return { 
+    address, 
+    privateKey: privateKey.replace(/^0x/, ''),
+    nodeId
+  };
 }
 
-async function startMining() {
+/* ---------- main ---------- */
+(async () => {
   try {
-    const { address, privateKey } = await loadWallet();
-    
-    // Step 1: Call API to start mining
-    const response = await fetch(API_URL, {
+    // Load wallet and node ID
+    const { address, privateKey, nodeId } = await loadWalletAndNodeId();
+    const short = `${address.slice(0, 6)}...${address.slice(-4)}`;
+    log(`⛏️ Node: ${address}`);
+    log(`🔗 Node ID: ${nodeId}`);
+    console.log(`⛏️ Mining Node: ${short}`);
+
+    /* --- delay before API --- */
+    log(`⏳ Waiting ${DELAY_MS / 1000} seconds before contacting API...`);
+    await new Promise((r) => setTimeout(r, DELAY_MS));
+
+    /* --- hit start-mining API --- */
+    const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        nodeAddress: address,
-        action: 'start'
-      })
-    });
+      body: JSON.stringify({ nodeId })  // Send nodeId instead of nodeAddress
+    }).then((r) => r.json());
 
-    const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error(data.message || 'Failed to start mining');
-    }
+    if (!res.success) throw new Error(res.error || 'API error');
 
-    if (data.isActive) {
-      console.log('✅ Mining already active');
+    if (res.status === 'already_mining') {
+      console.log('✅ Mining already active – no TX needed.');
       return;
     }
+    if (res.status !== 'ready_to_mine' || !res.txData) {
+      throw new Error(res.message || 'Unexpected API response');
+    }
 
-    // Step 2: Send transaction
+    /* --- sign & submit tx --- */
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const signer = new ethers.Wallet(privateKey, provider);
-    
-    const txResponse = await signer.sendTransaction({
-      to: data.txData.to,
-      data: data.txData.data,
-      value: data.txData.value,
-      gasLimit: data.txData.gasLimit,
-      chainId: CHAIN_ID
-    });
-
-    console.log(`📤 Transaction sent: https://basescan.org/tx/${txResponse.hash}`);
-    
-    const receipt = await txResponse.wait();
-    console.log(`✅ Mining started successfully in block ${receipt.blockNumber}`);
+    const txResp = await signer.sendTransaction({ ...res.txData, chainId: CHAIN_ID });
+    console.log(`✅ TX submitted: https://basescan.org/tx/${txResp.hash}`);
 
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    log(`❌ ${err.message}`);
     process.exit(1);
   }
-}
-
-startMining();
+})();
