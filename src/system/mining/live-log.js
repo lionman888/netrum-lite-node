@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 
 /* ---------- config ---------- */
 const API_URL = 'https://api.netrumlabs.com/api/node/mining/live-log/';
+const MIN_DELAY = 30_000; // 30 seconds minimum
+const MAX_DELAY = 600_000; // 10 minutes maximum
 
 /* ---------- logging ---------- */
 process.stdout._handle.setBlocking(true);
@@ -16,12 +18,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const keyFile = path.resolve(__dirname, '../../wallet/key.txt');
 
 async function loadAddress() {
-  const { address } = JSON.parse(await fs.readFile(keyFile, 'utf-8'));
-  if (!address) throw new Error('wallet/key.txt missing address');
-  return address.trim();
+  try {
+    const { address } = JSON.parse(await fs.readFile(keyFile, 'utf-8'));
+    if (!address) throw new Error('wallet/key.txt missing address');
+    return address.trim();
+  } catch (err) {
+    throw new Error(`Failed to load wallet: ${err.message}`);
+  }
 }
 
-/* ---------- helpers ---------- */
+/* ---------- formatting helpers ---------- */
 const fmtTokens = (wei) => (Number(wei) / 1e18).toFixed(6);
 const fmtTime = (s) => {
   const h = Math.floor(s / 3600);
@@ -30,38 +36,60 @@ const fmtTime = (s) => {
   return `${h}h ${m}m ${sec}s`;
 };
 
-async function poll(address) {
+/* ---------- polling logic ---------- */
+async function poll(address, attempt = 1) {
   try {
-    const res = await fetch(API_URL, {
+    const response = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nodeAddress: address })
-    }).then((r) => r.json());
+    });
 
-    if (!res.success) throw new Error(res.error || 'API error');
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+
+    const res = await response.json();
+    
+    if (!res.success) {
+      throw new Error(res.error || 'API returned unsuccessful response');
+    }
 
     const info = res.liveInfo;
-    const line = `⏱️ ${fmtTime(info.timeRemaining)} | ${info.percentComplete.toFixed(2)}% | `
-               + `Stats: > Mined: ${fmtTokens(info.minedTokens)} NPT | `
-               + `Speed: ${fmtTokens(info.speedPerSec)}/s | `
-               + `Status: ${info.isActive ? '✅ ACTIVE' : '❌ INACTIVE'}`;
+    const line = `⏱️ ${fmtTime(info.timeRemaining)} | ${info.percentComplete.toFixed(2)}% | ` +
+               `Mined: ${fmtTokens(info.minedTokens)} NPT | ` +
+               `Speed: ${fmtTokens(info.speedPerSec)}/s | ` +
+               `Status: ${info.isActive ? '✅ ACTIVE' : '❌ INACTIVE'}`;
 
-    // Clear terminal + print one-liner
+    // Clear terminal and print status
     process.stdout.write('\x1Bc');
     console.log(line);
 
     if (!info.isActive && info.timeRemaining === 0) {
-      log('⏹️ Mining finished');
+      log('⏹️ Mining session completed');
       process.exit(0);
     }
+
+    // Reset attempt counter on success
+    attempt = 1;
+
   } catch (err) {
-    log(`❌ ${err.message}`);
+    console.error(`Attempt ${attempt} failed:`, err.message);
+    
+    if (attempt >= 3) {
+      log('❌ Too many consecutive failures, exiting');
+      process.exit(1);
+    }
   }
 
-  // Random wait (0 - 10 min)
-  const randomDelay = Math.floor(Math.random() * 10 * 60 * 1000);
-  log(`⏳ Next poll in ${(randomDelay / 1000).toFixed(0)} seconds`);
-  setTimeout(() => poll(address), randomDelay);
+  // Calculate next poll time with exponential backoff
+  const delay = Math.min(
+    MIN_DELAY * Math.pow(2, attempt - 1) + Math.random() * 10_000,
+    MAX_DELAY
+  );
+  
+  log(`⏳ Next poll in ${Math.floor(delay/1000)} seconds`);
+  setTimeout(() => poll(address, attempt), delay);
 }
 
 /* ---------- main ---------- */
@@ -69,7 +97,7 @@ async function poll(address) {
   try {
     const address = await loadAddress();
     log(`📡 Live log started for ${address}`);
-    console.log('⏱️ Live Mining Log (random interval within 10 minutes)\n--------------------------------');
+    console.log('⏱️ Live Mining Status\n--------------------------------');
 
     await poll(address);
   } catch (err) {
