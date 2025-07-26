@@ -26,6 +26,7 @@ if (!entries.length) {
 const pad = Math.max(...entries.map(([cmd]) => cmd.length)) + 2;
 
 const descriptionMap = {
+  "netrum-update":        "Cli Update",
   "netrum-system":        "System status & logs",
   "netrum-new-wallet":    "Create / new a wallet",
   "netrum-import-wallet": "Create / import a wallet",
