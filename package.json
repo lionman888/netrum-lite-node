@@ -1,6 +1,6 @@
 {
-  "name": "netrum-lite-node",
-  "version": "1.0.0",
+  "name": "netrum-cli-v2",
+  "version": "2.0.0",
   "main": "index.js",
   "type": "module",
   "bin": {
