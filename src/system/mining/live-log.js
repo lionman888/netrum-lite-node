@@ -25,18 +25,12 @@ function formatTokens(wei) {
 }
 
 function formatStatus(data) {
-  const timeRemaining = data.timeRemaining ?? 0;
-  const percentComplete = data.percentComplete ?? 0;
-  const minedTokens = data.minedTokens ?? 0;
-  const speedPerSec = data.speedPerSec ?? 0;
-  const isActive = data.isActive ?? false;
-
   return [
-    `⏱️ ${formatTime(timeRemaining)}`,
-    `${percentComplete.toFixed(2)}%`,
-    `Mined: ${formatTokens(minedTokens)} NPT`,
-    `Speed: ${formatTokens(speedPerSec)}/s`,
-    `Status: ${isActive ? '✅ ACTIVE' : '❌ INACTIVE'}`
+    `⏱️ ${formatTime(data.timeRemaining || 0)}`,
+    `${(data.percentComplete || 0).toFixed(2)}%`,
+    `Mined: ${formatTokens(data.minedTokens || 0)} NPT`,
+    `Speed: ${formatTokens(data.speedPerSec || 0)}/s`,
+    `Status: ${data.isActive ? '✅ ACTIVE' : '❌ INACTIVE'}`
   ].join(' | ');
 }
 
@@ -48,16 +42,16 @@ async function pollMiningStatus(address) {
       body: JSON.stringify({ nodeAddress: address })
     });
 
-    const data = await response.json();
+    const json = await response.json();
 
-    if (!data.success || !data.timeRemaining) {
-      throw new Error(data.message || 'Failed to get mining status');
+    if (!json.success || typeof json !== 'object' || !json.percentComplete) {
+      throw new Error(json.message || 'Unexpected response structure');
     }
 
     process.stdout.write('\x1Bc'); // Clear console
-    console.log(formatStatus(data));
+    console.log(formatStatus(json));
 
-    if (!data.isActive && data.timeRemaining === 0) {
+    if (!json.isActive && json.timeRemaining === 0) {
       console.log('⏹️ Mining session completed');
       process.exit(0);
     }
