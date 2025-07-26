@@ -28,7 +28,7 @@ const errorRed = chalk.red.bold;
 // Custom orange spinner
 const orangeSpinner = {
   interval: 80,
-  frames: ["?? ", "?? ", "?? ", "?? "]
+  frames: ["🟠 ", "🟡 ", "🟠 ", "🟡 "]
 };
 
 function showHeader() {
@@ -39,7 +39,7 @@ function showHeader() {
     )
   );
   console.log(
-    boxen(orange.bold('?? Node Registration Portal'), {
+    boxen(orange.bold('🔶 Node Registration Portal'), {
       padding: 1,
       margin: 1,
       borderStyle: 'round',
@@ -103,9 +103,9 @@ async function registerNode() {
   showHeader();
   let NODE_WALLET, NODE_ID;
 
-  try  
+  try {
     // Step 1: Wallet initialization
-    console.log(orange.bold('\n?? Step 1: Wallet Initialization'));
+    console.log(orange.bold('\n🔶 Step 1: Wallet Initialization'));
     const walletSpinner = ora(orange('Reading wallet information...')).start();
     
     try {
@@ -129,25 +129,25 @@ async function registerNode() {
     }
 
     // Step 2: Network connection
-    console.log(orange.bold('\n?? Step 2: Network Connection'));
+    console.log(orange.bold('\n🔶 Step 2: Network Connection'));
     if (!await executeStep('Network Connect', 'node', [resolvePath('../system/animation/connecting.js')])) {
       process.exit(1);
     }
 
     // Step 3: Contract registration
-    console.log(orange.bold('\n?? Step 3: Contract Registration'));
+    console.log(orange.bold('\n🔶 Step 3: Contract Registration'));
     if (!await executeStep('Contract Register', 'node', [resolvePath('../contracts/lite-register.js')])) {
       process.exit(1);
     }
 
     // Step 4: Network connection
-    console.log(orange.bold('\n?? Step 4: Server Connection'));
+    console.log(orange.bold('\n🔶 Step 4: Server Connection'));
     if (!await executeStep('Server Connect', 'node', [resolvePath('../system/animation/connecting.js')])) {
       process.exit(1);
     }
 
     // Step 5: Server registration
-    console.log(orange.bold('\n?? Step 5: Server Registration'));
+    console.log(orange.bold('\n🔶 Step 5: Server Registration'));
     if (!await executeStep('Server Register', 'node', [resolvePath('../server/api-register.js')])) {
       process.exit(1);
     }
@@ -155,22 +155,22 @@ async function registerNode() {
     // Final success message
     console.log(
       boxen(
-        orangeGradient('?? Node Registration Complete!'),
+        orangeGradient('✅ Node Registration Complete!'),
         { padding: 1, borderColor: 'yellow' }
       )
     );
     console.log(orange.bold('\nNode Registration Details:'));
-    console.log(orange(`?? Wallet: ${darkOrange.bold(NODE_WALLET)}`));
-    console.log(orange(`?? Node ID: ${darkOrange.bold(NODE_ID)}\n`));
+    console.log(orange(`🔹 Wallet: ${darkOrange.bold(NODE_WALLET)}`));
+    console.log(orange(`🔹 Node ID: ${darkOrange.bold(NODE_ID)}\n`));
 
-    // Step 5: Server Response
-    console.log(orange.bold('\n?? Step 5: Server Response'));
+    // Step 6: Server Response
+    console.log(orange.bold('\n🔶 Step 6: Server Response'));
     if (!await executeStep('Server Response', 'node', [resolvePath('../system/animation/connecting.js')])) {
       process.exit(1);
     }
 
-    // Step 6: Display registration data
-    console.log(orange.bold('\n?? Registration Response Data:'));
+    // Step 7: Display registration data
+    console.log(orange.bold('\n🔶 Registration Response Data:'));
     try {
       const REGISTER_DATA_FILE = resolvePath('./data.txt');
       if (fs.existsSync(REGISTER_DATA_FILE)) {
@@ -179,10 +179,10 @@ async function registerNode() {
         
         // Format and display the data beautifully
         console.log(boxen(
-          `?? Node ID: ${darkOrange(data.data.nodeId)}\n` +
-          `?? Wallet: ${darkOrange(data.data.wallet)}\n` +
-          `?? Signature: ${darkOrange(data.data.signature)}\n` +
-          `?? TX Hash: ${darkOrange(data.data.txHash)}`,
+          `🔹 Node ID: ${darkOrange(data.data.nodeId)}\n` +
+          `🔹 Wallet: ${darkOrange(data.data.wallet)}\n` +
+          `🔹 Signature: ${darkOrange(data.data.signature)}\n` +
+          `🔹 TX Hash: ${darkOrange(data.data.txHash)}`,
           {
             padding: 1,
             borderColor: 'yellow',

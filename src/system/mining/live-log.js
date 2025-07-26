@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const API_URL = 'https://api.netrumlabs.com/api/node/mining/setup/';
+const API_URL = 'https://api.v2.netrumlabs.com/api/node/mining/setup/';
 const POLL_INTERVAL = 20000; // 20 seconds
 
 async function loadAddress() {

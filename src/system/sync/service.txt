@@ -8,14 +8,11 @@ User=root
 WorkingDirectory=/root/netrum-lite-node/src/system/sync
 ExecStart=/usr/bin/node /root/netrum-lite-node/src/system/sync/service.js
 Restart=always
-# Critical logging settings:
 StandardOutput=journal
 StandardError=journal
 Environment=NODE_ENV=production
-# Force immediate logging (no buffering):
 Environment=PYTHONUNBUFFERED=1
 Environment=NODE_ENV=production
-# Disable any rate limiting:
 LogRateLimitIntervalSec=0
 LogRateLimitBurst=0
 

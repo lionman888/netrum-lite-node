@@ -46,7 +46,7 @@ async function registerNode() {
 
     console.log('?? Sending registration data to server...');
     
-    const response = await fetch('https://api.netrumlabs.com/api/node/register-node/', {
+    const response = await fetch('https://api.v2.netrumlabs.com/api/node/register-node/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

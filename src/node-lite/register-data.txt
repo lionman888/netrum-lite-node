@@ -1,1 +1,0 @@
-{"message":"✅ Lite Node Registered","txHash":"0xbcca5ec473e92bbdb9e88f33242f296ad70bad1c2439e95ecdc9183cc6ff7a85","insertedId":"6870c8919999107d055eeb5b"}
