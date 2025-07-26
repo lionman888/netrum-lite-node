@@ -4,12 +4,25 @@ import path from 'path';
 import axios from 'axios';
 import os from 'os';
 import diskusage from 'diskusage';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 
 // Configuration
 const API_BASE_URL = 'https://api.netrumlabs.com';
 const SYNC_ENDPOINT = '/api/node/metrics/sync';
 const SYNC_INTERVAL = 5000;
 const TOKEN_PATH = path.resolve(__dirname, '../mining/miningtoken.txt');
+
+// Minimum system requirements
+const NODE_REQUIREMENTS = { 
+  RAM: 4,    // in GB
+  CORES: 2,  // minimum cores
+  STORAGE: 50 // in GB
+};
+
 
 // Configure axios instance
 const api = axios.create({
