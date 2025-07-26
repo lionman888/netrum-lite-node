@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const API_URL = 'https://api.v2.netrumlabs.com/api/node/mining/setup/';
-const POLL_INTERVAL = 20000; // 20 seconds
+const POLL_INTERVAL = 60000; // 60 seconds
 
 async function loadAddress() {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
