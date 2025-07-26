@@ -29,7 +29,7 @@
   "keywords": ["netrum", "node", "mining", "cli", "blockchain", "crypto", "base"],
   "author": "netrum_team",
   "license": "ISC",
-  "description": "Netrum Node CLI tool for mining, registration, and blockchain interaction."
+  "description": "Netrum Node CLI tool for mining, registration, and blockchain interaction.",
   "dependencies": {
     "axios": "^1.10.0",
     "boxen": "^8.0.1",
