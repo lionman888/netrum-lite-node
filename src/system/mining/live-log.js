@@ -13,22 +13,30 @@ async function loadAddress() {
   return address;
 }
 
-function formatStatus(data) {
-  const formatTime = (seconds) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return `${h}h ${m}m ${s}s`;
-  };
+function formatTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  return `${h}h ${m}m ${s}s`;
+}
 
-  const formatTokens = (wei) => (Number(wei) / 1e18).toFixed(6);
+function formatTokens(wei) {
+  return (Number(wei) / 1e18).toFixed(6);
+}
+
+function formatStatus(data) {
+  const timeRemaining = data.timeRemaining ?? 0;
+  const percentComplete = data.percentComplete ?? 0;
+  const minedTokens = data.minedTokens ?? 0;
+  const speedPerSec = data.speedPerSec ?? 0;
+  const isActive = data.isActive ?? false;
 
   return [
-    `⏱️ ${formatTime(data.timeRemaining)}`,
-    `${data.percentComplete.toFixed(2)}%`,
-    `Mined: ${formatTokens(data.minedTokens)} NPT`,
-    `Speed: ${formatTokens(data.speedPerSec)}/s`,
-    `Status: ${data.isActive ? '✅ ACTIVE' : '❌ INACTIVE'}`
+    `⏱️ ${formatTime(timeRemaining)}`,
+    `${percentComplete.toFixed(2)}%`,
+    `Mined: ${formatTokens(minedTokens)} NPT`,
+    `Speed: ${formatTokens(speedPerSec)}/s`,
+    `Status: ${isActive ? '✅ ACTIVE' : '❌ INACTIVE'}`
   ].join(' | ');
 }
 
@@ -41,8 +49,8 @@ async function pollMiningStatus(address) {
     });
 
     const data = await response.json();
-    
-    if (!data.success) {
+
+    if (!data.success || !data.timeRemaining) {
       throw new Error(data.message || 'Failed to get mining status');
     }
 
