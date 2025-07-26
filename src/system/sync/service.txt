@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/root/netrum-lite-node/src/system/sync
-ExecStart=/usr/bin/node /root/netrum-lite-node/src/system/sync/service.js
+ExecStart=/usr/bin/node /root/netrum-lite-node/src/system/sync/service.cjs
 Restart=always
 # Critical logging settings:
 StandardOutput=journal
