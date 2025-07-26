@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const API_URL = 'https://api.v2.netrumlabs.com/api/node/mining/live-log/';
-const POLL_INTERVAL = 60000; // 60 seconds
+const POLL_INTERVAL = 60_000; // 60 seconds
 
 async function loadAddress() {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -13,45 +13,53 @@ async function loadAddress() {
   return address;
 }
 
-function formatTime(seconds) {
+function formatTime(seconds = 0) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
   return `${h}h ${m}m ${s}s`;
 }
 
-function formatTokens(wei) {
+function formatTokens(wei = '0') {
   return (Number(wei) / 1e18).toFixed(6);
 }
 
-function formatStatus(data) {
+function formatStatus(info) {
   return [
-    `⏱️ ${formatTime(data.timeRemaining || 0)}`,
-    `${(data.percentComplete || 0).toFixed(2)}%`,
-    `Mined: ${formatTokens(data.minedTokens || 0)} NPT`,
-    `Speed: ${formatTokens(data.speedPerSec || 0)}/s`,
-    `Status: ${data.isActive ? '✅ ACTIVE' : '❌ INACTIVE'}`
+    `⏱️ ${formatTime(info.timeRemaining)}`,
+    `${(info.percentComplete).toFixed(2)}%`,
+    `Mined: ${formatTokens(info.minedTokens)} NPT`,
+    `Speed: ${formatTokens(info.speedPerSec)}/s`,
+    `Status: ${info.isActive ? '✅ ACTIVE' : '❌ INACTIVE'}`
   ].join(' | ');
 }
 
 async function pollMiningStatus(address) {
   try {
-    const response = await fetch(API_URL, {
+    const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nodeAddress: address })
     });
+    const json = await res.json();
 
-    const json = await response.json();
-
-    if (!json.success || typeof json !== 'object' || !json.percentComplete) {
-      throw new Error(json.message || 'Unexpected response structure');
+    if (!json.success) {
+      // Server returned success: false
+      throw new Error(json.error || json.message || 'API returned an error');
     }
 
-    process.stdout.write('\x1Bc'); // Clear console
-    console.log(formatStatus(json));
+    // Extract the liveInfo payload:
+    const info = json.liveInfo;
+    if (!info || typeof info !== 'object') {
+      throw new Error('Invalid response format');
+    }
 
-    if (!json.isActive && json.timeRemaining === 0) {
+    // Clear and print
+    process.stdout.write('\x1Bc');
+    console.log(formatStatus(info));
+
+    // Exit if mining is done
+    if (!info.isActive && info.timeRemaining === 0) {
       console.log('⏹️ Mining session completed');
       process.exit(0);
     }
