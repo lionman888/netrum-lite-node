@@ -92,10 +92,11 @@
      > You should see the Netrum Lite Node CLI interface.
 
      ```bash
-       Netrum CLI  Version v1.0.0
+       Netrum CLI  Version v2.0.0
        Light-weight node & wallet toolkit for the Netrum network.
 
        Available Commands:
+       netrum-update          Cli Update
        netrum-system          System status & logs
        netrum-new-wallet      Create / new a wallet
        netrum-import-wallet   Create / import a wallet
