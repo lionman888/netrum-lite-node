@@ -9,10 +9,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configuration
+// Updated Configuration with 50-60 second sync interval
 const API_BASE_URL = 'https://api.v2.netrumlabs.com';
 const SYNC_ENDPOINT = '/api/node/metrics/sync/';
-const SYNC_INTERVAL = 5000;
+const MIN_SYNC_INTERVAL = 50000; // 50 seconds (minimum)
+const MAX_SYNC_INTERVAL = 60000; // 60 seconds (maximum)
 const TOKEN_PATH = path.resolve(__dirname, '../mining/miningtoken.txt');
 
 // Minimum system requirements
@@ -22,18 +23,21 @@ const NODE_REQUIREMENTS = {
   STORAGE: 50 // in GB
 };
 
-// Configure axios instance with better defaults
+// Configure axios instance with optimized settings
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000, // Reduced from 10s to 8s
+  timeout: 20000, // Increased timeout to 20 seconds
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   },
-  maxRedirects: 0,
-  retry: 3,
-  retryDelay: (retryCount) => retryCount * 1000
+  maxRedirects: 0
 });
+
+// Get random interval between 50-60 seconds
+const getNextSyncInterval = () => {
+  return MIN_SYNC_INTERVAL + Math.floor(Math.random() * (MAX_SYNC_INTERVAL - MIN_SYNC_INTERVAL));
+};
 
 // Enhanced logging with error types
 const log = (msg, type = 'info') => {
@@ -41,7 +45,7 @@ const log = (msg, type = 'info') => {
   console.error(`${prefix} ${msg}`);
 };
 
-// More robust metrics collection
+// Robust metrics collection
 const getSystemMetrics = () => {
   try {
     const stats = {
@@ -66,7 +70,7 @@ const getSystemMetrics = () => {
   }
 };
 
-// Safer token saving with file locking
+// Atomic token saving
 const saveToken = (token) => {
   try {
     fs.mkdirSync(path.dirname(TOKEN_PATH), { recursive: true });
@@ -79,7 +83,7 @@ const saveToken = (token) => {
   }
 };
 
-// Improved node ID reading with retries
+// Resilient node ID reading
 const readNodeId = () => {
   const idPath = '/root/netrum-lite-node/src/identity/node-id/id.txt';
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -93,10 +97,10 @@ const readNodeId = () => {
   }
 };
 
-// Enhanced sync function with better error handling
+// Enhanced sync function with retry logic
 const syncNode = async () => {
   try {
-    // 1. Get node ID with retry logic
+    // 1. Get node ID
     const nodeId = await readNodeId();
     if (!nodeId) throw new Error('Empty node ID');
 
@@ -111,28 +115,32 @@ const syncNode = async () => {
       metrics.disk >= NODE_REQUIREMENTS.STORAGE
     );
 
-    // 4. Send to server with timeout protection
-    const response = await api.post(SYNC_ENDPOINT, {
-      nodeId,
-      nodeMetrics: metrics,
-      nodeStatus: isActive ? 'Active' : 'InActive'
-    }).catch(err => {
-      if (err.code === 'ECONNABORTED') {
-        throw new Error('Request timeout');
-      }
-      throw err;
-    });
+    // 4. Send to server with retry
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const response = await api.post(SYNC_ENDPOINT, {
+          nodeId,
+          nodeMetrics: metrics,
+          nodeStatus: isActive ? 'Active' : 'InActive'
+        });
 
-    // 5. Handle response
-    if (response.data?.success) {
-      log(response.data.log || 'Sync successful');
-      if (response.data.miningToken) {
-        saveToken(response.data.miningToken);
+        if (response.data?.success) {
+          const nextSyncIn = Math.round(getNextSyncInterval()/1000);
+          log(`Sync successful. Next sync in ${nextSyncIn} seconds`);
+          if (response.data.miningToken) {
+            saveToken(response.data.miningToken);
+          }
+          return true;
+        } else {
+          throw new Error(response.data?.error || 'Unknown server error');
+        }
+      } catch (err) {
+        if (attempt === 3) throw err;
+        const delay = 5000 * attempt; // Exponential backoff
+        log(`Attempt ${attempt} failed (${err.message}), retrying in ${delay/1000}s...`, 'warn');
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-    } else {
-      log(`Sync failed: ${response.data?.error || 'Unknown server error'}`, 'warn');
     }
-
   } catch (err) {
     if (err.response) {
       const status = err.response.status;
@@ -141,39 +149,46 @@ const syncNode = async () => {
     } else {
       log(`Sync failed: ${err.message}`, 'error');
     }
+    return false;
   }
 };
 
-// Robust service starter with crash protection
+// Optimized service starter
 const startService = () => {
-  log('Starting Netrum Node Sync Service');
+  log('Starting Netrum Node Sync with 50-60 second interval');
   
-  let syncInProgress = false;
-  const safeSync = async () => {
-    if (syncInProgress) {
-      log('Previous sync still in progress, skipping this cycle', 'warn');
+  let activeSync = false;
+  let nextSyncTimer = null;
+
+  const scheduleNextSync = () => {
+    const interval = getNextSyncInterval();
+    nextSyncTimer = setTimeout(executeSync, interval);
+    log(`Next sync scheduled in ${Math.round(interval/1000)} seconds`);
+  };
+
+  const executeSync = async () => {
+    if (activeSync) {
+      log('Sync already in progress', 'warn');
       return;
     }
-    
-    syncInProgress = true;
+
+    activeSync = true;
     try {
       await syncNode();
     } catch (err) {
       log(`Unhandled sync error: ${err.message}`, 'error');
     } finally {
-      syncInProgress = false;
+      activeSync = false;
+      scheduleNextSync();
     }
   };
 
   // Initial sync
-  safeSync();
-  
-  // Periodic sync with overlap protection
-  const intervalId = setInterval(safeSync, SYNC_INTERVAL);
+  executeSync();
 
-  // Cleanup handler
+  // Cleanup handlers
   process.on('SIGTERM', () => {
-    clearInterval(intervalId);
+    if (nextSyncTimer) clearTimeout(nextSyncTimer);
     log('Service shutting down gracefully');
     process.exit(0);
   });
