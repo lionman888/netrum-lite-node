@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const API_BASE_URL = 'https://api.v2.netrumlabs.com';
-const SYNC_ENDPOINT = '/api/node/metrics/sync/';
+const SYNC_ENDPOINT = '/api/node/metrics/sync';
 const TOKEN_PATH = path.resolve(__dirname, '../mining/miningtoken.txt');
 const SYNC_COOLDOWN = 60000; // Strict 60-second cooldown
 
