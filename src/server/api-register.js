@@ -51,7 +51,7 @@ async function registerNode() {
       txHash: TX_HASH
     };
 
-    console.log('?? Sending registration data to server...');
+    console.log('🚀 Sending registration data to server...');
     
     const response = await fetch('https://api.v2.netrumlabs.com/api/node/register-node/', {
       method: 'POST',
