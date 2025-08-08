@@ -47,6 +47,11 @@ async function registerNode() {
     };
 
     console.log('🚀 Sending registration data to server...');
+
+    if (await checkIfRegistered(signerAddress)) {
+      console.log("ℹ️ This address is already registered onchain, no need to check.");
+      return;
+    }
     
     const response = await fetch('https://api.v2.netrumlabs.com/api/node/register-node/', {
       method: 'POST',
