@@ -21,7 +21,7 @@ function formatTime(seconds = 0) {
 }
 
 function formatTokens(wei = '0') {
-  return (Number(wei) / 1e18).toFixed(6);
+  return (Number(wei) / 1e18).toFixed(8);
 }
 
 function getStatusEmoji(statusType) {
