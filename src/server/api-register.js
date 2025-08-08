@@ -35,11 +35,6 @@ async function registerNode() {
     // Parse sign file
     const { nodeId, signerAddress, timestamp, signature } = parseSignFile();
 
-    if (await checkIfRegistered(signerAddress)) {
-      console.log("ℹ️ This address is already registered onchain, no need to check.");
-      return;
-    }
-
     // Read transaction hash
     const TX_HASH = fs.readFileSync(TX_HASH_PATH, 'utf-8').trim();
     
