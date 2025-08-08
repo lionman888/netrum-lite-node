@@ -143,3 +143,5 @@ registerLiteNode().then(result => {
     console.log(`Transaction hash: ${result.txHash}`);
   }
 });
+
+export { checkIfRegistered };
