@@ -3,7 +3,6 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fetch from 'node-fetch';
-import { checkIfRegistered } from '../contracts/lite-register.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -31,7 +30,13 @@ function parseSignFile() {
 
 async function registerNode() {
   try {
-    // Check if data file already exists
+    // step 1 User On-Chain Register check 
+    if (!fs.existsSync(TX_HASH_PATH) || !fs.readFileSync(TX_HASH_PATH, 'utf-8').trim()) {
+      console.error("❌ You are not registered on-chain. Please complete on-chain registration first.");
+      return;
+    }
+    
+    // Step 2 Check if data file already exists
     if (fs.existsSync(OUTPUT_FILE)) {
       console.log("ℹ️ This address is already registered onchain, Data already exist in Data file");
       return;
