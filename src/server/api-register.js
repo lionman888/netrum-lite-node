@@ -31,6 +31,11 @@ function parseSignFile() {
 
 async function registerNode() {
   try {
+    // Check if data file already exists
+    if (fs.existsSync(OUTPUT_FILE)) {
+      console.log("ℹ️ This address is already registered onchain, Data already exist in Data file");
+      return;
+    }
 
     // Parse sign file
     const { nodeId, signerAddress, timestamp, signature } = parseSignFile();
@@ -47,11 +52,6 @@ async function registerNode() {
     };
 
     console.log('🚀 Sending registration data to server...');
-
-    if (await checkIfRegistered(signerAddress)) {
-      console.log("ℹ️ This address is already registered onchain, no need to check.");
-      return;
-    }
     
     const response = await fetch('https://api.v2.netrumlabs.com/api/node/register-node/', {
       method: 'POST',
