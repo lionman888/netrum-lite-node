@@ -21,7 +21,8 @@
     "netrum-sync-log": "./cli/sync-log-cli.js",
     "netrum-mining": "./cli/mining-cli.js",
     "netrum-mining-log": "./cli/mining-log-cli.js",
-    "netrum-claim": "./cli/claim-cli.js"
+    "netrum-claim": "./cli/claim-cli.js",
+    "netrum-auto-claim": "./cli/auto-claim-cli.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
