@@ -31,7 +31,7 @@ apt install -y nodejs
 
 # 步骤3: 克隆仓库
 echo -e "${BLUE}📦 步骤3: 克隆增强版仓库...${NC}"
-git clone https://github.com/lionman888/netrum-lite-node-enhanced.git
+git clone https://github.com/lionman888/netrum-lite-node.git
 cd netrum-lite-node-enhanced
 
 # 步骤4: 安装依赖
