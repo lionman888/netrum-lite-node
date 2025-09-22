@@ -38,13 +38,13 @@ fi
 
 # 步骤4: 克隆仓库
 echo -e "${BLUE}📦 步骤4: 克隆增强版仓库...${NC}"
-if [ -d "netrum-lite-node-enhanced" ]; then
+if [ -d "netrum-lite-node" ]; then
     echo -e "${YELLOW}⚠️  目录已存在，正在更新...${NC}"
-    cd netrum-lite-node-enhanced
+    cd netrum-lite-node
     git pull
 else
-    git clone https://github.com/lionman888/netrum-lite-node-enhanced.git
-    cd netrum-lite-node-enhanced
+    git clone https://github.com/lionman888/netrum-lite-node-enhanced.git netrum-lite-node
+    cd netrum-lite-node
 fi
 
 # 步骤5: 安装依赖
